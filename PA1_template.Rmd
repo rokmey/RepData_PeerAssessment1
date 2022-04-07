@@ -1,25 +1,160 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: 'Reproducible Research: Peer Assessment 1'
+author: "RM"
+date: "4/7/2022"
+output: html_document
+keep_md: true
 ---
 
+```{r set options, echo=TRUE}
+library(ggplot2)
+library(lattice)
+library(base)
+```
 
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
+### Set the directory
+```{r}
+setwd("C:/Users/thoma/Desktop/Roksana")
+```
 
 
+# Load the data
 
-## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+library(readr)
+activity <- read_csv("repdata_data_activity/activity.csv")
+```
+
+### Observe the data
+```{r}
+head(activity)
+summary(activity)
+```
+
+### Remove the missing values
+```{r}
+new_data <- na.omit(activity)
+summary(new_data)
+```
+
+
+# What is mean total number of steps taken per day?
+
+
+### Calculate the total number of steps daily
+```{r}
+steps_daily <- aggregate(steps ~ date, new_data, sum)
+```
+
+### Create the histogram
+```{r}
+hist(steps_daily$steps, main = "Total number of steps per day", 
+     xlab = "Steps per day")
+```
+
+### Calculate the mean and the  median
+```{r}
+mean(steps_daily$steps) #or round(mean(steps_daily$steps))
+median(steps_daily$steps)
+```
+
+
+# What is the average daily activity pattern?
+
+        
+### Calculate average number of steps per interval
+```{r}
+avg_steps_int <- aggregate(steps ~ interval, new_data, mean)
+```
+
+### Create the plot
+```{r}
+plot(avg_steps_int$interval, avg_steps_int$steps, type = "l", 
+     col = "blue", main = "Average number of steps by interval", 
+     xlab = "Intervals", ylab = "Average number of steps")
+```
+
+### Identify the interval with the highest average steps
+```{r}
+int_max <- which.max(avg_steps_int$steps)
+print (paste("The interval with the highest avg steps is ", 
+             avg_steps_int[int_max, ]$interval, 
+             " and the no of steps for that interval is ", 
+             round(avg_steps_int[int_max, ]$steps, digits = 1)))
+```
+        
+        
+# Imputing missing values
+        
+        
+### Numbers of rows with NA values
+```{r}
+sum(is.na(activity)) # or nrow(activity[!complete.cases(activity), ])
+```
+
+### Filling in all NA in the dataset
+```{r}
+for (i in 1:row(activity)) {
+        if(is.na(activity$steps[i])) {
+                new_value <- avg_steps_int$steps[
+                        which(avg_steps_int$interval == activity$interval[i])]
+                        activity$steps[i] <- new_value
+        }
+}
+```
+
+### Dataset with new values
+```{r}
+new_steps <- aggregate(steps ~ date, activity, sum)
+```
+
+### Create the histogram 
+```{r}
+par(mar=c(5, 5, 5, 5)) 
+hist(new_steps$steps, main = "Total number of steps daily with new values", 
+     xlab = "Steps per day")
+```
+
+### Calculate the mean and the  median
+```{r}
+mean(new_steps$steps)
+median(new_steps$steps)
+print (paste("Note that the mean and the median has not changed with the new values that were added"))
+```
+
+
+# Are there differences in activity patterns between weekdays and weekends?
+
+
+```{r}
+week_day <- function(date) {
+        weekend <- weekdays(as.Date(date, "%Y-%m-%d"))
+        if (!(weekend == "Saturday" || weekend == "Sunday")) {
+                x <- "Weekday"
+        } else {
+                x <- "Weekend"
+        }
+            x
+        }
+```
+
+### Apply week_day function to the dataset
+```{r}
+activity$day_type <- as.factor(sapply(activity$date, week_day))
+```
+
+### Create new dataset
+```{r}
+steps_day <- aggregate(steps ~ interval+day_type, activity, mean)
+```
+
+### Create the panel plot
+```{r}
+plot <- ggplot(steps_day, aes(interval, steps)) + 
+        geom_line(stat = "identity", aes(col = day_type)) + theme_gray() + 
+        facet_grid(day_type ~ ., scales="fixed", space="fixed") + 
+        labs(x = "Interval", y = "Number of Steps") + 
+        ggtitle("Number of Steps per Interval by Day Type")
+print(plot)
+```
